@@ -1,12 +1,19 @@
 exit:
-  ; Argument: arg1
+  push rbp
+  mov rbp, rsp
   mov rax, 60
-  mov rdi, 69
+  mov rdi, rdi
   syscall
+  mov rsp, rbp
+  pop rbp
   ret
 _start:
+  push rbp
+  mov rbp, rsp
+  mov rdi, 69
   call exit
-  push rax
   syscall
+  mov rsp, rbp
+  pop rbp
   ret
 global _start

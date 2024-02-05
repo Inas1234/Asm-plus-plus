@@ -1,13 +1,16 @@
 global _start
 
-fn exit(){
-    mov rax, 60
-    mov rdi, 69
+fn print(msg){
+    mov rax, 1
+    mov rdi, 1
+    mov rsi, msg
+    mov rdx, 13
     syscall
 }
 
 fn _start() 
 {
-    call exit()
+
+    
     syscall
 }
