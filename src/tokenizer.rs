@@ -1,0 +1,148 @@
+use std::fmt;
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum TokenType {
+    Number,
+    Identifier,
+    Mov,
+    Add,
+    Lparen,
+    Rparen,
+    Comma,
+    Global,
+    Function,
+    CurlyL,
+    CurlyR,
+}
+
+
+#[derive(Debug, Clone)]
+pub struct Token {
+    pub token_type: TokenType,
+    pub value: Option<String>,
+}
+
+fn token_type_to_String(token_type: TokenType) -> String {
+    match token_type {
+        TokenType::Number => "Number".to_string(),
+        TokenType::Identifier => "Identifier".to_string(),
+        TokenType::Mov => "Mov".to_string(),
+        TokenType::Add => "Add".to_string(),
+        TokenType::Lparen => "Lparen".to_string(),
+        TokenType::Rparen => "Rparen".to_string(),
+        TokenType::Comma => "Comma".to_string(),
+        TokenType::Global => "Global".to_string(),
+        TokenType::Function => "Function".to_string(),
+        TokenType::CurlyL => "CurlyL".to_string(),
+        TokenType::CurlyR => "CurlyR".to_string(),
+    }
+}
+
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Token({:?}, {:?})", token_type_to_String(self.token_type), self.value).expect("Error in formatting");
+        Ok(())
+    }
+}
+
+pub struct Tokenizer {
+    contents: String,
+    index: usize,
+}
+
+impl Tokenizer {
+    pub fn new(contents: String) -> Tokenizer {
+        Tokenizer {
+            contents,
+            index: 0,
+        }
+    }
+
+    pub fn tokenize(&mut self) -> Vec<Token>{
+        let mut tokens = Vec::new();
+        let mut buffer = String::new();
+        while let Some(c) = self.peek(0) {
+            if c.is_alphabetic() {
+                buffer.push(self.consume());
+                while let Some(c) = self.peek(0) {
+                    if c.is_alphanumeric() {
+                        buffer.push(self.consume());
+                    } else {
+                        break;
+                    }
+                }
+
+                match buffer.as_str() {
+                    "mov" => tokens.push(Token { token_type: TokenType::Mov, value: None }),
+                    "add" => tokens.push(Token { token_type: TokenType::Add, value: None }),
+                    "global" => tokens.push(Token { token_type: TokenType::Global, value: None }),
+                    "fn" => tokens.push(Token { token_type: TokenType::Function, value: None }),
+                    _ => tokens.push(Token { token_type: TokenType::Identifier, value: Some(buffer.clone()) }),
+                }
+                buffer.clear();
+            }
+            else if c.is_digit(10){
+                buffer.push(self.consume());
+                while let Some(c) = self.peek(0) {
+                    if c.is_digit(10) {
+                        buffer.push(self.consume());
+                    } else {
+                        break;
+                    }
+                }
+                tokens.push(Token { token_type: TokenType::Number, value: Some(buffer.clone()) });
+                buffer.clear();
+            }
+            else if c == '(' {
+                tokens.push(Token { token_type: TokenType::Lparen, value: None });
+                self.consume();
+            }
+            else if c == ')' {
+                tokens.push(Token { token_type: TokenType::Rparen, value: None });
+                self.consume();
+            }
+            else if c == ',' {
+                tokens.push(Token { token_type: TokenType::Comma, value: None });
+                self.consume();
+            }
+            else if c == '{' {
+                tokens.push(Token { token_type: TokenType::CurlyL, value: None });
+                self.consume();
+            }
+            else if c == '}' {
+                tokens.push(Token { token_type: TokenType::CurlyR, value: None });
+                self.consume();
+            }
+            else if c.is_whitespace() {
+                self.consume();
+            }
+            else {
+                self.consume();
+            }
+        }
+        self.index = 0;
+        tokens
+    } 
+
+
+    fn peek(&self, ahead: usize) -> Option<char> {
+        let index = self.index + ahead;
+        if index < self.contents.len() {
+            self.contents.chars().nth(index)
+        } else {
+            None
+        }
+    }
+
+    fn consume(&mut self) -> char {
+        if self.index < self.contents.len(){
+            let c = self.contents[self.index..].chars().next().unwrap();
+            self.index += 1;
+            c
+        }
+        else {
+            '\0'
+        }
+    }
+}
+
