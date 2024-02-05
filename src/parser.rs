@@ -11,9 +11,15 @@ pub struct NodeExprNumber {
 }
 
 #[derive(Debug)]
+pub struct NodeExprString {
+    pub value: String,
+}
+
+#[derive(Debug)]
 pub enum NodeExpr {
     Ident(NodeExprIdent),
     Number(NodeExprNumber),
+    String(NodeExprString),
 }
 
 impl From<NodeExprIdent> for NodeExpr {
@@ -25,6 +31,12 @@ impl From<NodeExprIdent> for NodeExpr {
 impl From<NodeExprNumber> for NodeExpr {
     fn from(number: NodeExprNumber) -> Self {
         NodeExpr::Number(number)
+    }
+}
+
+impl From<NodeExprString> for NodeExpr {
+    fn from(string: NodeExprString) -> Self {
+        NodeExpr::String(string)
     }
 }
 
@@ -62,6 +74,19 @@ pub struct NodeStmtCall {
 }
 
 #[derive(Debug)]
+pub struct NodeStmtSection {
+    pub name: NodeExprIdent,
+}
+
+#[derive(Debug)]
+pub struct NodeStmtAssign {
+    pub ident: NodeExprIdent,
+    pub expr: NodeExpr,
+}
+
+
+
+#[derive(Debug)]
 pub enum NodeStmt {
     Mov(NodeStmtMov),
     Add(NodeStmtAdd),
@@ -69,6 +94,8 @@ pub enum NodeStmt {
     Func(NodeFunc),
     Syscall(NodeStmtSyscall),
     Call(NodeStmtCall),
+    Section(NodeStmtSection),
+    Assign(NodeStmtAssign),
 }
 
 #[derive(Debug)]
@@ -101,6 +128,11 @@ impl Parser {
             tokenizer::TokenType::Identifier => {
                 NodeExpr::Ident(NodeExprIdent {
                     name: token.value.clone().unwrap(),
+                })
+            }
+            tokenizer::TokenType::StringLit => {
+                NodeExpr::String(NodeExprString {
+                    value: token.value.clone().unwrap(),
                 })
             }
             _ => panic!("Unexpected token {:?}", token),
@@ -151,7 +183,7 @@ impl Parser {
             _ => panic!("Expected an identifier for the function name."),
         };
 
-        let opening_bracket = self.consume().unwrap(); // Consume the '(' token
+        let opening_bracket = self.consume().unwrap(); 
         if opening_bracket.token_type != tokenizer::TokenType::Lparen {
             panic!("Expected a lparen token to open the function arguments.");
         }
@@ -172,7 +204,7 @@ impl Parser {
                 _ => break, 
             }
         }
-        let closing_bracket = self.consume().unwrap(); // Consume the ')' token
+        let closing_bracket = self.consume().unwrap(); 
         if closing_bracket.token_type != tokenizer::TokenType::Rparen {
             panic!("Expected a rparen token to close the function arguments.");
         }
@@ -190,7 +222,8 @@ impl Parser {
                 | tokenizer::TokenType::Add
                 | tokenizer::TokenType::Global 
                 | tokenizer::TokenType::Syscall 
-                | tokenizer::TokenType::Call => {
+                | tokenizer::TokenType::Call 
+                | tokenizer::TokenType::Section => {
                     body.push(self.parse_statment().unwrap());
                 }
                 _ => break, 
@@ -224,7 +257,7 @@ impl Parser {
             _ => panic!("Expected an identifier for the function name."),
         };
 
-        let _ = self.consume().unwrap(); // Consume the '(' token
+        let _ = self.consume().unwrap(); 
         let mut arguments = Vec::new();
         while let Some(token) = self.peek(0) {
             match token.token_type {
@@ -243,8 +276,28 @@ impl Parser {
                 _ => break,
             }
         }
-        let _ = self.consume().unwrap(); // Consume the ')' token
+        let _ = self.consume().unwrap(); 
         NodeStmt::Call(NodeStmtCall { name, arguments })
+    }
+
+
+    fn parse_section(&mut self) -> NodeStmt {
+        self.consume();
+        let name = match self.parse_expression() {
+            NodeExpr::Ident(ident) => ident,
+            _ => panic!("Expected an identifier for the section name."),
+        };
+        NodeStmt::Section(NodeStmtSection { name })
+    }   
+
+    fn parse_assign(&mut self) -> NodeStmt {
+        let ident = match self.parse_expression() {
+            NodeExpr::Ident(ident) => ident,
+            _ => panic!("Expected an identifier for the assignment."),
+        };
+        let _ = self.consume().unwrap(); 
+        let expr = self.parse_expression();
+        NodeStmt::Assign(NodeStmtAssign { ident, expr })
     }
 
     pub fn parse_statment(&mut self) -> Option<NodeStmt> {
@@ -267,6 +320,12 @@ impl Parser {
                 }
                 tokenizer::TokenType::Call => {
                     return Some(self.parse_call());
+                }
+                tokenizer::TokenType::Section => {
+                    return Some(self.parse_section());
+                }
+                tokenizer::TokenType::Identifier => {
+                    return Some(self.parse_assign());
                 }
                 _ => {
                     panic!("Unexpected token {:?}", token);

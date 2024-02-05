@@ -15,6 +15,9 @@ pub enum TokenType {
     CurlyR,
     Syscall,
     Call,    
+    Section,
+    Colon,
+    StringLit
 }
 
 
@@ -39,6 +42,9 @@ fn token_type_to_String(token_type: TokenType) -> String {
         TokenType::CurlyR => "CurlyR".to_string(),
         TokenType::Syscall => "Syscall".to_string(),
         TokenType::Call => "Call".to_string(),
+        TokenType::Section => "Section".to_string(),
+        TokenType::Colon => "Colon".to_string(),
+        TokenType::StringLit => "StringLit".to_string(),
     }
 }
 
@@ -67,7 +73,16 @@ impl Tokenizer {
         let mut tokens = Vec::new();
         let mut buffer = String::new();
         while let Some(c) = self.peek(0) {
-            if c.is_alphabetic() || c == '_'{
+            if c == ';' {
+                while let Some(c) = self.peek(0) {
+                    if c != '\n' {
+                        self.consume();
+                    } else {
+                        break;
+                    }
+                }
+            }
+            else if c.is_alphabetic() || c == '_'{
                 buffer.push(self.consume());
                 while let Some(c) = self.peek(0) {
                     if c.is_alphanumeric() || c == '_' {
@@ -84,6 +99,7 @@ impl Tokenizer {
                     "fn" => tokens.push(Token { token_type: TokenType::Function, value: None }),
                     "syscall" => tokens.push(Token { token_type: TokenType::Syscall, value: None }),
                     "call" => tokens.push(Token { token_type: TokenType::Call, value: None }),
+                    "section" => tokens.push(Token { token_type: TokenType::Section, value: None }),
                     _ => tokens.push(Token { token_type: TokenType::Identifier, value: Some(buffer.clone()) }),
                 }
                 buffer.clear();
@@ -98,6 +114,19 @@ impl Tokenizer {
                     }
                 }
                 tokens.push(Token { token_type: TokenType::Number, value: Some(buffer.clone()) });
+                buffer.clear();
+            }
+            else if c == '"' {
+                self.consume();
+                while let Some(c) = self.peek(0) {
+                    if c != '"' {
+                        buffer.push(self.consume());
+                    } else {
+                        break;
+                    }
+                }
+                self.consume();
+                tokens.push(Token { token_type: TokenType::StringLit, value: Some(buffer.clone()) });
                 buffer.clear();
             }
             else if c == '(' {
@@ -118,6 +147,10 @@ impl Tokenizer {
             }
             else if c == '}' {
                 tokens.push(Token { token_type: TokenType::CurlyR, value: None });
+                self.consume();
+            }
+            else if c == ':' {
+                tokens.push(Token { token_type: TokenType::Colon, value: None });
                 self.consume();
             }
             else if c.is_whitespace() {

@@ -1,13 +1,24 @@
 global _start
 
-fn exit(code, cod2){
+section .data
+    msg: "Hello World"
+
+fn print(message){
+    mov rax, 1
+    mov rdi, 1
+    mov rsi, message
+    mov rdx, 11
+    syscall
+}
+
+fn exit(code) {
     mov rax, 60
-    mov rdi, cod2
+    mov rdi, code
     syscall
 }
 
 fn _start() 
 {
-    call exit(23, 44)
-
+    call print(msg)
+    call exit(0)
 }

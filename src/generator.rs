@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::parser::{Node, NodeStmt, NodeExpr, NodeExprIdent, NodeExprNumber, NodeFunc};
+use crate::parser::{Node, NodeStmt, NodeExpr, NodeExprIdent, NodeExprNumber, NodeFunc, NodeExprString};
 
 pub struct Generator {
     node: Node,
@@ -30,10 +30,8 @@ impl Generator {
             NodeStmt::Call(call) => {
                 let mut result = String::new();
 
-                // Calculate space needed on the stack for arguments
-                let stack_space = call.arguments.len() * 8; // Assuming 8 bytes per argument
+                let stack_space = call.arguments.len() * 8; 
 
-                // Reverse the arguments to push them onto the stack in correct order
                 let reversed_args: Vec<_> = call.arguments.iter().rev().collect();
 
                 for arg in reversed_args.iter() {
@@ -42,14 +40,17 @@ impl Generator {
 
                 result.push_str(&format!("  call {}\n", self.generate_expr_ident(&call.name)));
 
-                // If necessary, adjust the stack pointer after the call
-                // This depends on the calling convention; some conventions expect the callee to clean the stack,
-                // while others expect the caller to do it. Assuming caller cleans the stack here.
                 if stack_space > 0 {
                     result.push_str(&format!("  add rsp, {}\n", stack_space));
                 }
 
                 result
+            }
+            NodeStmt::Section(section) => {
+                format!("section .{}\n", self.generate_expr_ident(&section.name))
+            }
+            NodeStmt::Assign(assign) => {
+                format!("  {} db {} , 10\n", self.generate_expr_ident(&assign.ident), self.generate_expr(&assign.expr))
             }
             _ => "".to_string(),
         }
@@ -60,11 +61,10 @@ impl Generator {
         result.push_str("  push rbp\n");
         result.push_str("  mov rbp, rsp\n");
 
-        // Stack-based argument handling
         let mut arg_stack_map: HashMap<String, String> = HashMap::new();
         for (index, arg) in func.arguments.iter().enumerate() {
             let arg_name = self.generate_expr_ident(arg);
-            let stack_offset = (index + 2) * 8; // Adjusted for stack usage
+            let stack_offset = (index + 2) * 8; 
             let stack_offset_str = format!("[rbp + {}]", stack_offset);
             arg_stack_map.insert(arg_name, stack_offset_str);
         }
@@ -105,6 +105,7 @@ impl Generator {
                 arg_register_map.get(&name).unwrap_or(&name).clone()
             },
             NodeExpr::Number(number) => self.generate_expr_number(number),
+            NodeExpr::String(string) => self.generate_string(string),
         }
     }
 
@@ -126,10 +127,15 @@ impl Generator {
         ident.name.clone()
     }
 
+    fn generate_string(&self, string: &NodeExprString) -> String {
+        format!("\"{}\"", string.value)
+    }
+
     fn generate_expr(&self, expr: &NodeExpr) -> String {
         match expr {
             NodeExpr::Ident(ident) => self.generate_expr_ident(ident),
             NodeExpr::Number(number) => self.generate_expr_number(number),
+            NodeExpr::String(string) => self.generate_string(string),
         }
     }
 
