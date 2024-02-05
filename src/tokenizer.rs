@@ -14,7 +14,7 @@ pub enum TokenType {
     CurlyL,
     CurlyR,
     Syscall,
-    Call,
+    Call,    
 }
 
 

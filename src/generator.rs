@@ -29,22 +29,28 @@ impl Generator {
             }
             NodeStmt::Call(call) => {
                 let mut result = String::new();
-                let registers = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
 
+                // Calculate space needed on the stack for arguments
+                let stack_space = call.arguments.len() * 8; // Assuming 8 bytes per argument
+
+                // Reverse the arguments to push them onto the stack in correct order
                 let reversed_args: Vec<_> = call.arguments.iter().rev().collect();
 
-                for (i, arg) in reversed_args.iter().enumerate() {
-                    if i < registers.len() {
-                        result.push_str(&format!("  mov {}, {}\n", registers[i], self.generate_expr(arg)));
-                    } else {
-                        result.push_str(&format!("  push {}\n", self.generate_expr(arg)));
-                    }
+                for arg in reversed_args.iter() {
+                    result.push_str(&format!("  push {}\n", self.generate_expr(arg)));
                 }
 
                 result.push_str(&format!("  call {}\n", self.generate_expr_ident(&call.name)));
 
+                // If necessary, adjust the stack pointer after the call
+                // This depends on the calling convention; some conventions expect the callee to clean the stack,
+                // while others expect the caller to do it. Assuming caller cleans the stack here.
+                if stack_space > 0 {
+                    result.push_str(&format!("  add rsp, {}\n", stack_space));
+                }
+
                 result
-            }            
+            }
             _ => "".to_string(),
         }
     }
@@ -54,22 +60,17 @@ impl Generator {
         result.push_str("  push rbp\n");
         result.push_str("  mov rbp, rsp\n");
 
-        let registers = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
-        let mut arg_register_map: HashMap<String, String> = std::collections::HashMap::new();
-
+        // Stack-based argument handling
+        let mut arg_stack_map: HashMap<String, String> = HashMap::new();
         for (index, arg) in func.arguments.iter().enumerate() {
             let arg_name = self.generate_expr_ident(arg);
-            if index < registers.len() {
-                arg_register_map.insert(arg_name.clone(), registers[index].to_string());
-            } else {
-                let stack_offset: usize = (index - registers.len() + 2) * 8; // +2 for return address and old rbp
-                let stack_offset_str = format!("[rbp + {}]", stack_offset);
-                arg_register_map.insert(arg_name.clone(), stack_offset_str);
-            }
+            let stack_offset = (index + 2) * 8; // Adjusted for stack usage
+            let stack_offset_str = format!("[rbp + {}]", stack_offset);
+            arg_stack_map.insert(arg_name, stack_offset_str);
         }
 
         for stmt in &func.body {
-            result.push_str(&self.generate_statement_with_arg_map(stmt, &arg_register_map));
+            result.push_str(&self.generate_statement_with_arg_map(stmt, &arg_stack_map));
         }
 
         result.push_str("  mov rsp, rbp\n");

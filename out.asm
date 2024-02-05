@@ -2,7 +2,7 @@ exit:
   push rbp
   mov rbp, rsp
   mov rax, 60
-  mov rdi, rdi
+  mov rdi, [rbp + 16]
   syscall
   mov rsp, rbp
   pop rbp
@@ -10,9 +10,9 @@ exit:
 _start:
   push rbp
   mov rbp, rsp
-  mov rdi, 69
+  push 23
   call exit
-  syscall
+  add rsp, 8
   mov rsp, rbp
   pop rbp
   ret
