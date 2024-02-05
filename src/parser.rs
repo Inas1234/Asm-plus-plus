@@ -46,14 +46,27 @@ pub struct NodeStmtGlobal {
 }
 
 #[derive(Debug)]
+pub struct NodeFunc {
+    pub name: NodeExprIdent,     
+    pub arguments: Vec<NodeExprIdent>, 
+    pub body: Vec<NodeStmt>,     
+}
+
+#[derive(Debug)]
+pub struct NodeStmtSyscall {}
+
+#[derive(Debug)]
 pub enum NodeStmt {
     Mov(NodeStmtMov),
     Add(NodeStmtAdd),
     Global(NodeStmtGlobal),
+    Func(NodeFunc),
+    Syscall(NodeStmtSyscall),
 }
 
 #[derive(Debug)]
 pub struct Node {
+    pub functions: Vec<NodeFunc>,
     pub stmt: Vec<NodeStmt>,
 }
 
@@ -124,6 +137,63 @@ impl Parser {
         }
     }
 
+    fn parse_function(&mut self) -> NodeStmt {
+        self.consume(); // Consume the "func" keyword
+        let name = match self.parse_expression() {
+            NodeExpr::Ident(ident) => ident,
+            _ => panic!("Expected an identifier for the function name."),
+        };
+
+        let _ = self.consume().unwrap(); // Consume the '(' token
+        let mut arguments = Vec::new();
+        while let Some(token) = self.peek(0) {
+            match token.token_type {
+                tokenizer::TokenType::Identifier => {
+                    arguments.push(match self.parse_expression() {
+                        NodeExpr::Ident(ident) => ident,
+                        _ => panic!("Expected an identifier for an argument."),
+                    });
+                    
+                }
+                _ => break, 
+            }
+        }
+        let _ = self.consume().unwrap(); // Consume the ')' token
+
+        let _ = self.consume().unwrap(); 
+
+        let mut body = Vec::new();
+        while let Some(token) = self.peek(0) {
+            match token.token_type {
+                tokenizer::TokenType::Mov
+                | tokenizer::TokenType::Add
+                | tokenizer::TokenType::Global 
+                | tokenizer::TokenType::Syscall => {
+                    body.push(self.parse_statment().unwrap());
+                }
+                _ => break, 
+            }
+        }
+
+        let cirly= self.consume().unwrap();
+        if cirly.token_type != tokenizer::TokenType::CurlyR {
+            panic!("Expected a curlyR token to close the function body.");
+        }
+
+            
+
+        NodeStmt::Func(NodeFunc {
+            name,
+            arguments,
+            body,
+        })
+    }
+
+    fn parse_syscall(&mut self) -> NodeStmt {
+        self.consume();
+        NodeStmt::Syscall(NodeStmtSyscall {})
+    }
+
 
     pub fn parse_statment(&mut self) -> Option<NodeStmt> {
         while let Some(token) = self.peek(0)  {
@@ -137,6 +207,12 @@ impl Parser {
                 tokenizer::TokenType::Global => {
                     return Some(self.parse_global());
                 }
+                tokenizer::TokenType::Syscall => {
+                    return Some(self.parse_syscall());
+                }
+                tokenizer::TokenType::Function => {
+                    return Some(self.parse_function());
+                }
                 _ => {
                     panic!("Unexpected token {:?}", token);
                 }
@@ -149,10 +225,16 @@ impl Parser {
 
     pub fn parse_prog(&mut self) -> Node {
         let mut stmt = Vec::new();
+        let mut functions = Vec::new();
+
         while let Some(node) = self.parse_statment() {
-            stmt.push(node);
+            match node {
+                NodeStmt::Func(func) => functions.push(func),
+                _ => stmt.push(node),
+            }
         }
-        Node { stmt }
+
+        Node { stmt, functions }
     }
 
     fn peek(&self, offset: usize) -> Option<&Token> {

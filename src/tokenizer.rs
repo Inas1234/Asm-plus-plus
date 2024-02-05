@@ -13,6 +13,7 @@ pub enum TokenType {
     Function,
     CurlyL,
     CurlyR,
+    Syscall,
 }
 
 
@@ -35,6 +36,7 @@ fn token_type_to_String(token_type: TokenType) -> String {
         TokenType::Function => "Function".to_string(),
         TokenType::CurlyL => "CurlyL".to_string(),
         TokenType::CurlyR => "CurlyR".to_string(),
+        TokenType::Syscall => "Syscall".to_string(),
     }
 }
 
@@ -58,14 +60,15 @@ impl Tokenizer {
         }
     }
 
+
     pub fn tokenize(&mut self) -> Vec<Token>{
         let mut tokens = Vec::new();
         let mut buffer = String::new();
         while let Some(c) = self.peek(0) {
-            if c.is_alphabetic() {
+            if c.is_alphabetic() || c == '_'{
                 buffer.push(self.consume());
                 while let Some(c) = self.peek(0) {
-                    if c.is_alphanumeric() {
+                    if c.is_alphanumeric() || c == '_' {
                         buffer.push(self.consume());
                     } else {
                         break;
@@ -77,6 +80,7 @@ impl Tokenizer {
                     "add" => tokens.push(Token { token_type: TokenType::Add, value: None }),
                     "global" => tokens.push(Token { token_type: TokenType::Global, value: None }),
                     "fn" => tokens.push(Token { token_type: TokenType::Function, value: None }),
+                    "syscall" => tokens.push(Token { token_type: TokenType::Syscall, value: None }),
                     _ => tokens.push(Token { token_type: TokenType::Identifier, value: Some(buffer.clone()) }),
                 }
                 buffer.clear();

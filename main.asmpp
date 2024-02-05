@@ -1,4 +1,14 @@
-global _main
+global _start
 
-mov rax, 10
-mov rdi, 0
+fn exit(){
+    mov rax, 60
+    mov rdi, 69
+    syscall
+}
+
+fn _start() 
+{
+    mov rax, 60
+    call exit
+    syscall
+}
