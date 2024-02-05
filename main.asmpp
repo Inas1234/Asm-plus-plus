@@ -8,7 +8,6 @@ fn exit(){
 
 fn _start() 
 {
-    mov rax, 60
-    call exit
+    call exit()
     syscall
 }

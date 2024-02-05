@@ -14,6 +14,7 @@ pub enum TokenType {
     CurlyL,
     CurlyR,
     Syscall,
+    Call,
 }
 
 
@@ -37,6 +38,7 @@ fn token_type_to_String(token_type: TokenType) -> String {
         TokenType::CurlyL => "CurlyL".to_string(),
         TokenType::CurlyR => "CurlyR".to_string(),
         TokenType::Syscall => "Syscall".to_string(),
+        TokenType::Call => "Call".to_string(),
     }
 }
 
@@ -81,6 +83,7 @@ impl Tokenizer {
                     "global" => tokens.push(Token { token_type: TokenType::Global, value: None }),
                     "fn" => tokens.push(Token { token_type: TokenType::Function, value: None }),
                     "syscall" => tokens.push(Token { token_type: TokenType::Syscall, value: None }),
+                    "call" => tokens.push(Token { token_type: TokenType::Call, value: None }),
                     _ => tokens.push(Token { token_type: TokenType::Identifier, value: Some(buffer.clone()) }),
                 }
                 buffer.clear();

@@ -56,12 +56,19 @@ pub struct NodeFunc {
 pub struct NodeStmtSyscall {}
 
 #[derive(Debug)]
+pub struct NodeStmtCall {
+    pub name: NodeExprIdent,
+    pub arguments: Vec<NodeExpr>,
+}
+
+#[derive(Debug)]
 pub enum NodeStmt {
     Mov(NodeStmtMov),
     Add(NodeStmtAdd),
     Global(NodeStmtGlobal),
     Func(NodeFunc),
     Syscall(NodeStmtSyscall),
+    Call(NodeStmtCall),
 }
 
 #[derive(Debug)]
@@ -168,7 +175,8 @@ impl Parser {
                 tokenizer::TokenType::Mov
                 | tokenizer::TokenType::Add
                 | tokenizer::TokenType::Global 
-                | tokenizer::TokenType::Syscall => {
+                | tokenizer::TokenType::Syscall 
+                | tokenizer::TokenType::Call => {
                     body.push(self.parse_statment().unwrap());
                 }
                 _ => break, 
@@ -195,6 +203,36 @@ impl Parser {
     }
 
 
+    fn parse_call(&mut self) -> NodeStmt {
+        self.consume();
+        let name = match self.parse_expression() {
+            NodeExpr::Ident(ident) => ident,
+            _ => panic!("Expected an identifier for the function name."),
+        };
+
+        let _ = self.consume().unwrap(); // Consume the '(' token
+        let mut arguments = Vec::new();
+        while let Some(token) = self.peek(0) {
+            match token.token_type {
+                tokenizer::TokenType::Number
+                | tokenizer::TokenType::Identifier => {
+                    arguments.push(self.parse_expression());
+                    if let Some(token) = self.peek(0) {
+                        match token.token_type {
+                            tokenizer::TokenType::Comma => {
+                                let _ = self.consume().unwrap();
+                            }
+                            _ => break,
+                        }
+                    }
+                }
+                _ => break,
+            }
+        }
+        let _ = self.consume().unwrap(); // Consume the ')' token
+        NodeStmt::Call(NodeStmtCall { name, arguments })
+    }
+
     pub fn parse_statment(&mut self) -> Option<NodeStmt> {
         while let Some(token) = self.peek(0)  {
             match token.token_type {
@@ -212,6 +250,9 @@ impl Parser {
                 }
                 tokenizer::TokenType::Function => {
                     return Some(self.parse_function());
+                }
+                tokenizer::TokenType::Call => {
+                    return Some(self.parse_call());
                 }
                 _ => {
                     panic!("Unexpected token {:?}", token);

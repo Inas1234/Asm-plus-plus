@@ -14,16 +14,23 @@ impl Generator {
     fn generate_statement(&self, stmt: &NodeStmt) -> String {
         match stmt {
             NodeStmt::Mov(mov) => {
-                format!("   mov {}, {}\n", self.generate_expr_ident(&mov.ident), self.generate_expr(&mov.expr))
+                format!("  mov {}, {}\n", self.generate_expr_ident(&mov.ident), self.generate_expr(&mov.expr))
             }
             NodeStmt::Add(add) => {
-                format!("   add {}, {}\n", self.generate_expr_ident(&add.ident), self.generate_expr(&add.expr))
+                format!("  add {}, {}\n", self.generate_expr_ident(&add.ident), self.generate_expr(&add.expr))
             }
             NodeStmt::Global(global) => {
-                format!("   global {}\n", self.generate_expr_ident(&global.ident))
+                format!("global {}\n", self.generate_expr_ident(&global.ident))
             }
             NodeStmt::Syscall(_syscall) => {
-                "   syscall\n".to_string()
+                "  syscall\n".to_string()
+            }
+            NodeStmt::Call(call) => {
+                let mut result = format!("  call {}\n", self.generate_expr_ident(&call.name));
+                for arg in &call.arguments {
+                    result.push_str(&format!("  push {}\n", self.generate_expr(arg)));
+                }
+                result
             }
             _ => "".to_string(),
         }
@@ -37,21 +44,7 @@ impl Generator {
         }
 
         for stmt in &func.body {
-            match stmt {
-                NodeStmt::Mov(mov) => {
-                    result.push_str(&format!("  mov {}, {}\n", self.generate_expr_ident(&mov.ident), self.generate_expr(&mov.expr)));
-                }
-                NodeStmt::Add(add) => {
-                    result.push_str(&format!("  add {}, {}\n", self.generate_expr_ident(&add.ident), self.generate_expr(&add.expr)));
-                }
-                NodeStmt::Global(global) => {
-                    result.push_str(&format!("  global {}\n", self.generate_expr_ident(&global.ident)));
-                }
-                NodeStmt::Syscall(_syscall) => {
-                    result.push_str("  syscall\n");
-                }
-                _ => (),
-            }
+            result.push_str(&self.generate_statement(stmt));
         }
 
         result.push_str("  ret\n");
@@ -67,21 +60,7 @@ impl Generator {
         }
 
         for stmt in &self.node.stmt {
-            match stmt {
-                NodeStmt::Mov(mov) => {
-                    result.push_str(&format!("mov {}, {}\n", self.generate_expr_ident(&mov.ident), self.generate_expr(&mov.expr)));
-                }
-                NodeStmt::Add(add) => {
-                    result.push_str(&format!("add {}, {}\n", self.generate_expr_ident(&add.ident), self.generate_expr(&add.expr)));
-                }
-                NodeStmt::Global(global) => {
-                    result.push_str(&format!("global {}\n", self.generate_expr_ident(&global.ident)));
-                }
-                NodeStmt::Syscall(_syscall) => {
-                    result.push_str("syscall\n");
-                }
-                _ => (),
-            }
+            result.push_str(&self.generate_statement(stmt));
         }
         result
     }
