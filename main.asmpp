@@ -1,13 +1,13 @@
 global _start
 
-fn exit(code){
+fn exit(code, cod2){
     mov rax, 60
-    mov rdi, code
+    mov rdi, cod2
     syscall
 }
 
 fn _start() 
 {
-    call exit(23)
+    call exit(23, 44)
 
 }

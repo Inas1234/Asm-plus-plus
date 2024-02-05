@@ -151,7 +151,11 @@ impl Parser {
             _ => panic!("Expected an identifier for the function name."),
         };
 
-        let _ = self.consume().unwrap(); // Consume the '(' token
+        let opening_bracket = self.consume().unwrap(); // Consume the '(' token
+        if opening_bracket.token_type != tokenizer::TokenType::Lparen {
+            panic!("Expected a lparen token to open the function arguments.");
+        }
+
         let mut arguments = Vec::new();
         while let Some(token) = self.peek(0) {
             match token.token_type {
@@ -162,12 +166,22 @@ impl Parser {
                     });
                     
                 }
+                tokenizer::TokenType::Comma => {
+                    let _ = self.consume().unwrap();
+                }
                 _ => break, 
             }
         }
-        let _ = self.consume().unwrap(); // Consume the ')' token
+        let closing_bracket = self.consume().unwrap(); // Consume the ')' token
+        if closing_bracket.token_type != tokenizer::TokenType::Rparen {
+            panic!("Expected a rparen token to close the function arguments.");
+        }
 
-        let _ = self.consume().unwrap(); 
+        let opening_curly = self.consume().unwrap(); 
+
+        if opening_curly.token_type != tokenizer::TokenType::CurlyL {
+            panic!("Expected a curlyL token to open the function body.");
+        }
 
         let mut body = Vec::new();
         while let Some(token) = self.peek(0) {
@@ -183,8 +197,8 @@ impl Parser {
             }
         }
 
-        let cirly= self.consume().unwrap();
-        if cirly.token_type != tokenizer::TokenType::CurlyR {
+        let closing_curly= self.consume().unwrap();
+        if closing_curly.token_type != tokenizer::TokenType::CurlyR {
             panic!("Expected a curlyR token to close the function body.");
         }
 
