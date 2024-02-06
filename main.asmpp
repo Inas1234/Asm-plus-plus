@@ -19,6 +19,17 @@ fn exit(code) {
 
 fn _start() 
 {
-    call print(msg)
+    mov rax, 30
+    mov rdi, 30
+    if (rax eq rdi) { 
+        mov rax, 1
+        mov rdi, 2
+        if (rax eq rdi) {
+            call print(msg)
+        }
+        call print(msg)
+    }
+
+
     call exit(0)
 }

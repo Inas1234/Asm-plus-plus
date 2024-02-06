@@ -16,10 +16,35 @@ pub struct NodeExprString {
 }
 
 #[derive(Debug)]
+pub struct NodeExprEqual {
+    pub left: Box<NodeExpr>,
+    pub right: Box<NodeExpr>,
+}
+
+#[derive(Debug)]
+pub struct NodeExprLesser {
+    pub left: Box<NodeExpr>,
+    pub right: Box<NodeExpr>,
+}
+
+#[derive(Debug)]
+pub struct NodeExprGreater {
+    pub left: Box<NodeExpr>,
+    pub right: Box<NodeExpr>,
+}
+
+#[derive(Debug)]
+pub struct NodeExprNotEqual {
+    pub left: Box<NodeExpr>,
+    pub right: Box<NodeExpr>,
+}
+
+#[derive(Debug)]
 pub enum NodeExpr {
     Ident(NodeExprIdent),
     Number(NodeExprNumber),
     String(NodeExprString),
+    Equal(NodeExprEqual),
 }
 
 impl From<NodeExprIdent> for NodeExpr {
@@ -84,7 +109,11 @@ pub struct NodeStmtAssign {
     pub expr: NodeExpr,
 }
 
-
+#[derive(Debug)]
+pub struct NodeStmtIf {
+    pub condition: NodeExpr,
+    pub body: Vec<NodeStmt>,
+}
 
 #[derive(Debug)]
 pub enum NodeStmt {
@@ -96,6 +125,7 @@ pub enum NodeStmt {
     Call(NodeStmtCall),
     Section(NodeStmtSection),
     Assign(NodeStmtAssign),
+    If(NodeStmtIf),
 }
 
 #[derive(Debug)]
@@ -117,27 +147,71 @@ impl Parser {
         }
     }
 
-    pub fn parse_expression(&mut self) -> NodeExpr {
-        let token = self.consume().unwrap();
-        match token.token_type {
-            tokenizer::TokenType::Number => {
-                NodeExpr::Number(NodeExprNumber {
-                    value: token.value.clone().unwrap().parse().unwrap(),
-                })
-            }
-            tokenizer::TokenType::Identifier => {
-                NodeExpr::Ident(NodeExprIdent {
-                    name: token.value.clone().unwrap(),
-                })
-            }
-            tokenizer::TokenType::StringLit => {
-                NodeExpr::String(NodeExprString {
-                    value: token.value.clone().unwrap(),
-                })
-            }
-            _ => panic!("Unexpected token {:?}", token),
+    fn operator_precedence(&self, token_type: &tokenizer::TokenType) -> i32 {
+        match token_type {
+            tokenizer::TokenType::Equal => 1,
+            _ => 0,
         }
     }
+
+    fn parse_binary_expression(&mut self, left: NodeExpr, min_precedence: i32) -> NodeExpr {
+        let mut left_expr = left;
+
+        while let Some(op_token) = self.peek(0) {
+            let precedence = self.operator_precedence(&op_token.token_type);
+            if precedence < min_precedence {
+                break;
+            }
+
+            let op_type = op_token.token_type.clone();
+            self.consume(); // Consume the operator
+            let mut right_expr = self.parse_primary_expression();
+            // Look ahead for right-associative operators or operators with higher precedence
+            while let Some(next_op_token) = self.peek(0) {
+                let next_precedence = self.operator_precedence(&next_op_token.token_type);
+                if next_precedence > precedence {
+                    right_expr = self.parse_binary_expression(right_expr, next_precedence);
+                } else {
+                    break;
+                }
+            }
+
+            left_expr = match op_type {
+                tokenizer::TokenType::Equal => NodeExpr::Equal(NodeExprEqual { left: Box::new(left_expr), right: Box::new(right_expr) }),
+                // Handle other binary operators
+                _ => panic!("Unexpected operator {:?}", op_type),
+            };
+        }
+
+        left_expr
+    }
+
+
+    fn parse_primary_expression(&mut self) -> NodeExpr {
+        let token = self.consume().expect("Expected a primary expression token");
+        match token.token_type {
+            tokenizer::TokenType::Identifier => NodeExpr::Ident(NodeExprIdent { name: token.value.clone().unwrap() }),
+            tokenizer::TokenType::Number => NodeExpr::Number(NodeExprNumber { value: token.value.clone().unwrap().parse().unwrap() }),
+            tokenizer::TokenType::StringLit => NodeExpr::String(NodeExprString { value: token.value.clone().unwrap() }),
+            _ => panic!("Unexpected token type in primary expression: {:?}", token.token_type),
+        }
+    }
+
+
+    pub fn parse_expression(&mut self) -> NodeExpr {
+        let primary_expr = self.parse_primary_expression();
+        if let Some(op_token) = self.peek(0) {
+            let precedence = self.operator_precedence(&op_token.token_type);
+            if precedence > 0 {
+                self.parse_binary_expression(primary_expr, precedence)
+            } else {
+                primary_expr
+            }
+        } else {
+            primary_expr
+        }
+    }
+
 
     fn parse_mov(&mut self) -> NodeStmt {
         self.consume();
@@ -223,7 +297,8 @@ impl Parser {
                 | tokenizer::TokenType::Global 
                 | tokenizer::TokenType::Syscall 
                 | tokenizer::TokenType::Call 
-                | tokenizer::TokenType::Section => {
+                | tokenizer::TokenType::Section 
+                | tokenizer::TokenType::If => {
                     body.push(self.parse_statment().unwrap());
                 }
                 _ => break, 
@@ -300,6 +375,57 @@ impl Parser {
         NodeStmt::Assign(NodeStmtAssign { ident, expr })
     }
 
+    fn parse_if(&mut self) -> NodeStmt{
+        self.consume();
+
+        let open_paren = self.consume().unwrap();
+        if open_paren.token_type != tokenizer::TokenType::Lparen {
+            panic!("Expected a lparen token to open the if condition.");
+        }
+
+        let condition = self.parse_expression();
+
+        println!("{:?}", condition);
+
+        let close_paren = self.consume().unwrap();
+        if close_paren.token_type != tokenizer::TokenType::Rparen {
+            panic!("Expected a rparen token to close the if condition.");
+        }
+
+
+        let opening_curly = self.consume().unwrap(); 
+        if opening_curly.token_type != tokenizer::TokenType::CurlyL {
+            panic!("Expected a curlyL token to open the if body.");
+        }
+
+        let mut body = Vec::new();
+        while let Some(token) = self.peek(0) {
+            match token.token_type {
+                tokenizer::TokenType::Mov
+                | tokenizer::TokenType::Add
+                | tokenizer::TokenType::Global 
+                | tokenizer::TokenType::Syscall 
+                | tokenizer::TokenType::Call 
+                | tokenizer::TokenType::Section 
+                | tokenizer::TokenType::If => {
+                    body.push(self.parse_statment().unwrap());
+                }
+                _ => break, 
+            }
+        }
+
+        let closing_curly= self.consume().unwrap();
+        if closing_curly.token_type != tokenizer::TokenType::CurlyR {
+            panic!("Expected a curlyR token to close the if body.");
+        }
+
+        NodeStmt::If(NodeStmtIf {
+            condition,
+            body,
+        })
+    } 
+
+
     pub fn parse_statment(&mut self) -> Option<NodeStmt> {
         while let Some(token) = self.peek(0)  {
             match token.token_type {
@@ -326,6 +452,9 @@ impl Parser {
                 }
                 tokenizer::TokenType::Identifier => {
                     return Some(self.parse_assign());
+                }
+                tokenizer::TokenType::If => {
+                    return Some(self.parse_if());
                 }
                 _ => {
                     panic!("Unexpected token {:?}", token);

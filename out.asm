@@ -21,9 +21,22 @@ exit:
 _start:
   push rbp
   mov rbp, rsp
+  mov rax, 30
+  mov rdi, 30
+  cmp rax, rdi
+  jne .if_true_label_0
+  mov rax, 1
+  mov rdi, 2
+  cmp rax, rdi
+  jne .if_true_label_1
   push msg
   call print
   add rsp, 8
+.if_true_label_1:
+  push msg
+  call print
+  add rsp, 8
+.if_true_label_0:
   push 0
   call exit
   add rsp, 8

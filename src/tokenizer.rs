@@ -17,7 +17,12 @@ pub enum TokenType {
     Call,    
     Section,
     Colon,
-    StringLit
+    StringLit,
+    Equal,
+    Lesser,
+    Greater,
+    NotEqual,
+    If
 }
 
 
@@ -45,6 +50,11 @@ fn token_type_to_String(token_type: TokenType) -> String {
         TokenType::Section => "Section".to_string(),
         TokenType::Colon => "Colon".to_string(),
         TokenType::StringLit => "StringLit".to_string(),
+        TokenType::Equal => "Equal".to_string(),
+        TokenType::Lesser => "Lesser".to_string(),
+        TokenType::Greater => "Greater".to_string(),
+        TokenType::NotEqual => "NotEqual".to_string(),
+        TokenType::If => "If".to_string(),
     }
 }
 
@@ -100,6 +110,11 @@ impl Tokenizer {
                     "syscall" => tokens.push(Token { token_type: TokenType::Syscall, value: None }),
                     "call" => tokens.push(Token { token_type: TokenType::Call, value: None }),
                     "section" => tokens.push(Token { token_type: TokenType::Section, value: None }),
+                    "eq" => tokens.push(Token { token_type: TokenType::Equal, value: None }),
+                    "lt" => tokens.push(Token { token_type: TokenType::Lesser, value: None }),
+                    "gt" => tokens.push(Token { token_type: TokenType::Greater, value: None }),
+                    "ne" => tokens.push(Token { token_type: TokenType::NotEqual, value: None }),
+                    "if" => tokens.push(Token { token_type: TokenType::If, value: None }),
                     _ => tokens.push(Token { token_type: TokenType::Identifier, value: Some(buffer.clone()) }),
                 }
                 buffer.clear();

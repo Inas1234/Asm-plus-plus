@@ -1,6 +1,9 @@
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
-use crate::parser::{Node, NodeStmt, NodeExpr, NodeExprIdent, NodeExprNumber, NodeFunc, NodeExprString};
+use crate::parser::{Node, NodeStmt, NodeExpr, NodeExprIdent, NodeExprNumber, NodeFunc, NodeExprString, NodeStmtIf};
+
+static LABEL_COUNT: AtomicUsize = AtomicUsize::new(0);
 
 pub struct Generator {
     node: Node,
@@ -12,6 +15,34 @@ impl Generator {
             node,
         }
     }
+
+    fn unique_label(&self) -> String { 
+        let count = LABEL_COUNT.fetch_add(1, Ordering::SeqCst);
+        format!("label_{}", count)
+    }
+
+    fn generate_if_statement(&self, if_stmt: &NodeStmtIf) -> String {
+        let mut result = String::new();
+        let unique_label = self.unique_label();
+        match &if_stmt.condition {
+            NodeExpr::Equal(equal_expr) => {
+                let left = self.generate_expr(&equal_expr.left);
+                let right = self.generate_expr(&equal_expr.right);
+                result.push_str(&format!("  cmp {}, {}\n", left, right));
+                result.push_str(&format!("  jne .if_true_{}\n", unique_label));
+            }
+            _ => panic!("Unsupported if statement condition"),
+        }
+
+        for stmt in &if_stmt.body {
+            result.push_str(&self.generate_statement(stmt));
+        }
+
+        result.push_str(&format!(".if_true_{}:\n", unique_label));
+
+        result
+    }
+
 
     fn generate_statement(&self, stmt: &NodeStmt) -> String {
         match stmt {
@@ -51,6 +82,9 @@ impl Generator {
             }
             NodeStmt::Assign(assign) => {
                 format!("  {} db {} , 10\n", self.generate_expr_ident(&assign.ident), self.generate_expr(&assign.expr))
+            }
+            NodeStmt::If(if_stmt) => {
+                self.generate_if_statement(if_stmt, )
             }
             _ => "".to_string(),
         }
@@ -106,6 +140,7 @@ impl Generator {
             },
             NodeExpr::Number(number) => self.generate_expr_number(number),
             NodeExpr::String(string) => self.generate_string(string),
+            _ => "".to_string(),
         }
     }
 
@@ -131,11 +166,13 @@ impl Generator {
         format!("\"{}\"", string.value)
     }
 
+
     fn generate_expr(&self, expr: &NodeExpr) -> String {
         match expr {
             NodeExpr::Ident(ident) => self.generate_expr_ident(ident),
             NodeExpr::Number(number) => self.generate_expr_number(number),
             NodeExpr::String(string) => self.generate_string(string),
+            _ => "".to_string(),
         }
     }
 
