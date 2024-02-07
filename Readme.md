@@ -4,7 +4,7 @@ Assembly++ is a simplified version of x86-64 assembly
 ## Usage
 To use Assembly++ you need to have a file with the extension .asmpp and you have to have NASM installed on your computer. To compile the file you have to run the following command in the terminal:
 ```bash
-cargo run <input_file>
+asmpp -f <format> -o <output file name> <input file name>
 ```
 ## Syntax
 The syntax is very similar to x86-64 assembly, but with some differences. Here is an example of a simple program that prints out a triangle of asterisks:
@@ -35,10 +35,10 @@ fn _start()
     while (r12  lt 10){
         xor rbx, rbx
         while (rbx lt r12){
-            call print(star, 1)
+            call print(star, len(star))
             add rbx, 1
         }
-        call print(newline, 1)
+        call print(newline, len(newline))
         add r12, 1
     }
 
