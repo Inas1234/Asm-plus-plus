@@ -45,6 +45,9 @@ pub enum NodeExpr {
     Number(NodeExprNumber),
     String(NodeExprString),
     Equal(NodeExprEqual),
+    Lesser(NodeExprLesser),
+    Greater(NodeExprGreater),
+    NotEqual(NodeExprNotEqual),
 }
 
 impl From<NodeExprIdent> for NodeExpr {
@@ -150,6 +153,9 @@ impl Parser {
     fn operator_precedence(&self, token_type: &tokenizer::TokenType) -> i32 {
         match token_type {
             tokenizer::TokenType::Equal => 1,
+            tokenizer::TokenType::Lesser => 1,
+            tokenizer::TokenType::Greater => 1,
+            tokenizer::TokenType::NotEqual => 1,
             _ => 0,
         }
     }
@@ -164,9 +170,8 @@ impl Parser {
             }
 
             let op_type = op_token.token_type.clone();
-            self.consume(); // Consume the operator
+            self.consume(); 
             let mut right_expr = self.parse_primary_expression();
-            // Look ahead for right-associative operators or operators with higher precedence
             while let Some(next_op_token) = self.peek(0) {
                 let next_precedence = self.operator_precedence(&next_op_token.token_type);
                 if next_precedence > precedence {
@@ -178,7 +183,9 @@ impl Parser {
 
             left_expr = match op_type {
                 tokenizer::TokenType::Equal => NodeExpr::Equal(NodeExprEqual { left: Box::new(left_expr), right: Box::new(right_expr) }),
-                // Handle other binary operators
+                tokenizer::TokenType::Lesser => NodeExpr::Lesser(NodeExprLesser { left: Box::new(left_expr), right: Box::new(right_expr) }),
+                tokenizer::TokenType::Greater => NodeExpr::Greater(NodeExprGreater { left: Box::new(left_expr), right: Box::new(right_expr) }),
+                tokenizer::TokenType::NotEqual => NodeExpr::NotEqual(NodeExprNotEqual { left: Box::new(left_expr), right: Box::new(right_expr) }),
                 _ => panic!("Unexpected operator {:?}", op_type),
             };
         }
@@ -385,7 +392,6 @@ impl Parser {
 
         let condition = self.parse_expression();
 
-        println!("{:?}", condition);
 
         let close_paren = self.consume().unwrap();
         if close_paren.token_type != tokenizer::TokenType::Rparen {

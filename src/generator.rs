@@ -31,6 +31,24 @@ impl Generator {
                 result.push_str(&format!("  cmp {}, {}\n", left, right));
                 result.push_str(&format!("  jne .if_true_{}\n", unique_label));
             }
+            NodeExpr::Lesser(lesser_expr) => {
+                let left = self.generate_expr(&lesser_expr.left);
+                let right = self.generate_expr(&lesser_expr.right);
+                result.push_str(&format!("  cmp {}, {}\n", left, right));
+                result.push_str(&format!("  jge .if_true_{}\n", unique_label));
+            }
+            NodeExpr::Greater(greater_expr) => {
+                let left = self.generate_expr(&greater_expr.left);
+                let right = self.generate_expr(&greater_expr.right);
+                result.push_str(&format!("  cmp {}, {}\n", left, right));
+                result.push_str(&format!("  jle .if_true_{}\n", unique_label));
+            }
+            NodeExpr::NotEqual(not_equal_expr) => {
+                let left = self.generate_expr(&not_equal_expr.left);
+                let right = self.generate_expr(&not_equal_expr.right);
+                result.push_str(&format!("  cmp {}, {}\n", left, right));
+                result.push_str(&format!("  je .if_true_{}\n", unique_label));
+            }
             _ => panic!("Unsupported if statement condition"),
         }
 
@@ -81,13 +99,37 @@ impl Generator {
                 format!("section .{}\n", self.generate_expr_ident(&section.name))
             }
             NodeStmt::Assign(assign) => {
-                format!("  {} db {} , 10\n", self.generate_expr_ident(&assign.ident), self.generate_expr(&assign.expr))
+                let newstring = self.string_to_hex(self.generate_expr(&assign.expr));
+                format!("  {} db {} \n", self.generate_expr_ident(&assign.ident), newstring)
             }
             NodeStmt::If(if_stmt) => {
                 self.generate_if_statement(if_stmt, )
             }
             _ => "".to_string(),
         }
+    }
+
+    fn string_to_hex(&self, string: String) -> String {
+        let bytes = string.as_bytes();
+        let mut hex_representation = String::new();
+        let mut skip_next = false;
+
+        for (i, &byte) in bytes.iter().enumerate() {
+            if skip_next {
+                skip_next = false;
+                continue;
+            }
+
+            if byte == b'\\' && i + 1 < bytes.len() && bytes[i + 1] == b'n' {
+                hex_representation.push_str("0x0a, ");
+                skip_next = true; 
+            } else {
+                let hex = format!("0x{:02x}, ", byte);
+                hex_representation.push_str(&hex);
+            }
+        }
+
+        hex_representation.trim_end_matches(", ").to_string()
     }
 
     fn generate_function(&self, func: &NodeFunc) -> String {
@@ -163,7 +205,7 @@ impl Generator {
     }
 
     fn generate_string(&self, string: &NodeExprString) -> String {
-        format!("\"{}\"", string.value)
+        format!("{}", string.value)
     }
 
 

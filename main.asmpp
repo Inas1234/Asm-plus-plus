@@ -1,13 +1,13 @@
 global _start
 
 section .data
-    msg: "Hello World"
+    msg: "Hello World\n"
 
 fn print(message){
     mov rax, 1
     mov rdi, 1
     mov rsi, message
-    mov rdx, 11
+    mov rdx, 12
     syscall
 }
 
@@ -24,7 +24,7 @@ fn _start()
     if (rax eq rdi) { 
         mov rax, 1
         mov rdi, 2
-        if (rax eq rdi) {
+        if (rax gt rdi) {
             call print(msg)
         }
         call print(msg)
