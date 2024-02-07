@@ -24,10 +24,10 @@ fn _start()
     while (r12  lt 10){
         xor rbx, rbx
         while (rbx lt r12){
-            call print(star, 1)
+            call print(star, len(star))
             add rbx, 1
         }
-        call print(newline, 1)
+        call print(newline, len(newline))
         add r12, 1
     }
 

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use crate::parser::{Node, NodeExpr, NodeExprIdent, NodeExprNumber, NodeExprString, NodeFunc, NodeStmt, NodeStmtIf, NodeStmtWhile};
+use crate::parser::{Node, NodeExpr, NodeExprIdent, NodeExprLen, NodeExprNumber, NodeExprString, NodeFunc, NodeStmt, NodeStmtIf, NodeStmtWhile};
 
 static LABEL_COUNT: AtomicUsize = AtomicUsize::new(0);
 
@@ -145,7 +145,12 @@ impl Generator {
             }
             NodeStmt::Assign(assign) => {
                 let newstring = self.string_to_hex(self.generate_expr(&assign.expr));
-                format!("  {} db {}, 0\n", self.generate_expr_ident(&assign.ident), newstring)
+                let mut result = String::new();
+                result.push_str(&format!("  {} db {}\n", self.generate_expr_ident(&assign.ident), newstring));
+
+                result.push_str(&format!("  {}_len equ $ - {}\n", self.generate_expr_ident(&assign.ident), self.generate_expr_ident(&assign.ident)));
+
+                result
             }
             NodeStmt::If(if_stmt) => {
                 self.generate_if_statement(if_stmt, )
@@ -265,12 +270,16 @@ impl Generator {
         format!("{}", string.value)
     }
 
+    fn generate_length(&self, string: &NodeExprLen) -> String {
+        format!("{}_len", self.generate_expr(&string.ident))
+    }
 
     fn generate_expr(&self, expr: &NodeExpr) -> String {
         match expr {
             NodeExpr::Ident(ident) => self.generate_expr_ident(ident),
             NodeExpr::Number(number) => self.generate_expr_number(number),
             NodeExpr::String(string) => self.generate_string(string),
+            NodeExpr::Len(string) => self.generate_length(string),
             _ => "".to_string(),
         }
     }

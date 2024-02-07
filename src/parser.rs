@@ -40,6 +40,11 @@ pub struct NodeExprNotEqual {
 }
 
 #[derive(Debug)]
+pub struct NodeExprLen {
+    pub ident: Box<NodeExpr>,
+}
+
+#[derive(Debug)]
 pub enum NodeExpr {
     Ident(NodeExprIdent),
     Number(NodeExprNumber),
@@ -48,6 +53,7 @@ pub enum NodeExpr {
     Lesser(NodeExprLesser),
     Greater(NodeExprGreater),
     NotEqual(NodeExprNotEqual),
+    Len(NodeExprLen),
 }
 
 impl From<NodeExprIdent> for NodeExpr {
@@ -227,10 +233,27 @@ impl Parser {
             tokenizer::TokenType::Identifier => NodeExpr::Ident(NodeExprIdent { name: token.value.clone().unwrap() }),
             tokenizer::TokenType::Number => NodeExpr::Number(NodeExprNumber { value: token.value.clone().unwrap().parse().unwrap() }),
             tokenizer::TokenType::StringLit => NodeExpr::String(NodeExprString { value: token.value.clone().unwrap() }),
+            tokenizer::TokenType::Len => {
+                let _ = self.expect_token(tokenizer::TokenType::Lparen, "Expected '(' after 'len'");
+
+                let expr = self.parse_expression();
+
+                let _ = self.expect_token(tokenizer::TokenType::Rparen, "Expected ')' after len expression");
+
+                NodeExpr::Len(NodeExprLen { ident: Box::new(expr) })
+            }
             _ => panic!("Unexpected token type in primary expression: {:?}", token.token_type),
         }
     }
 
+    // Add a helper function to expect and consume a specific type of token, improving error handling
+    fn expect_token(&mut self, expected_type: tokenizer::TokenType, error_msg: &str) -> Option<&Token> {
+        let token = self.consume().expect(error_msg);
+        if token.token_type != expected_type {
+            panic!("{}", error_msg);
+        }
+        Some(token)
+    }
 
     pub fn parse_expression(&mut self) -> NodeExpr {
         let primary_expr = self.parse_primary_expression();
@@ -336,7 +359,8 @@ impl Parser {
                 | tokenizer::TokenType::While 
                 | tokenizer::TokenType::Push 
                 | tokenizer::TokenType::Pop 
-                | tokenizer::TokenType::Xor => {
+                | tokenizer::TokenType::Xor 
+                => {
                     body.push(self.parse_statment().unwrap());
                 }
                 _ => break, 
@@ -376,6 +400,17 @@ impl Parser {
             match token.token_type {
                 tokenizer::TokenType::Number
                 | tokenizer::TokenType::Identifier => {
+                    arguments.push(self.parse_expression());
+                    if let Some(token) = self.peek(0) {
+                        match token.token_type {
+                            tokenizer::TokenType::Comma => {
+                                let _ = self.consume().unwrap();
+                            }
+                            _ => break,
+                        }
+                    }
+                }
+                tokenizer::TokenType::Len => {
                     arguments.push(self.parse_expression());
                     if let Some(token) = self.peek(0) {
                         match token.token_type {
@@ -482,7 +517,6 @@ impl Parser {
         if close_paren.token_type != tokenizer::TokenType::Rparen {
             panic!("Expected a rparen token to close the while condition.");
         }
-
 
         let opening_curly = self.consume().unwrap(); 
         if opening_curly.token_type != tokenizer::TokenType::CurlyL {
