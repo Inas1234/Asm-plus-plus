@@ -22,7 +22,11 @@ pub enum TokenType {
     Lesser,
     Greater,
     NotEqual,
-    If
+    If,
+    While,
+    Push,
+    Xor,
+    Pop
 }
 
 
@@ -55,6 +59,10 @@ fn token_type_to_String(token_type: TokenType) -> String {
         TokenType::Greater => "Greater".to_string(),
         TokenType::NotEqual => "NotEqual".to_string(),
         TokenType::If => "If".to_string(),
+        TokenType::While => "While".to_string(),
+        TokenType::Push => "Push".to_string(),
+        TokenType::Xor => "Xor".to_string(),
+        TokenType::Pop => "Pop".to_string(),
     }
 }
 
@@ -115,6 +123,10 @@ impl Tokenizer {
                     "gt" => tokens.push(Token { token_type: TokenType::Greater, value: None }),
                     "ne" => tokens.push(Token { token_type: TokenType::NotEqual, value: None }),
                     "if" => tokens.push(Token { token_type: TokenType::If, value: None }),
+                    "while" => tokens.push(Token { token_type: TokenType::While, value: None }),
+                    "push" => tokens.push(Token { token_type: TokenType::Push, value: None }),
+                    "xor" => tokens.push(Token { token_type: TokenType::Xor, value: None }),
+                    "pop" => tokens.push(Token { token_type: TokenType::Pop, value: None }),
                     _ => tokens.push(Token { token_type: TokenType::Identifier, value: Some(buffer.clone()) }),
                 }
                 buffer.clear();

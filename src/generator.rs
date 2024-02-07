@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use crate::parser::{Node, NodeStmt, NodeExpr, NodeExprIdent, NodeExprNumber, NodeFunc, NodeExprString, NodeStmtIf};
+use crate::parser::{Node, NodeExpr, NodeExprIdent, NodeExprNumber, NodeExprString, NodeFunc, NodeStmt, NodeStmtIf, NodeStmtWhile};
 
 static LABEL_COUNT: AtomicUsize = AtomicUsize::new(0);
 
@@ -62,6 +62,51 @@ impl Generator {
     }
 
 
+    fn generate_while(&self, while_stmt: &NodeStmtWhile) -> String {
+        let mut result = String::new();
+        let unique_label = self.unique_label();
+        result.push_str(&format!(".while_{}:\n", unique_label));
+
+        match &while_stmt.condition {
+            NodeExpr::Equal(equal_expr) => {
+                let left = self.generate_expr(&equal_expr.left);
+                let right = self.generate_expr(&equal_expr.right);
+                result.push_str(&format!("  cmp {}, {}\n", left, right));
+                result.push_str(&format!("  jne .while_end_{}\n", unique_label));
+            }
+            NodeExpr::Lesser(lesser_expr) => {
+                let left = self.generate_expr(&lesser_expr.left);
+                let right = self.generate_expr(&lesser_expr.right);
+                result.push_str(&format!("  cmp {}, {}\n", left, right));
+                result.push_str(&format!("  jge .while_end_{}\n", unique_label));
+            }
+            NodeExpr::Greater(greater_expr) => {
+                let left = self.generate_expr(&greater_expr.left);
+                let right = self.generate_expr(&greater_expr.right);
+                result.push_str(&format!("  cmp {}, {}\n", left, right));
+                result.push_str(&format!("  jle .while_end_{}\n", unique_label));
+            }
+            NodeExpr::NotEqual(not_equal_expr) => {
+                let left = self.generate_expr(&not_equal_expr.left);
+                let right = self.generate_expr(&not_equal_expr.right);
+                result.push_str(&format!("  cmp {}, {}\n", left, right));
+                result.push_str(&format!("  je .while_end_{}\n", unique_label));
+            }
+            _ => panic!("Unsupported while statement condition"),
+        }
+
+        for stmt in &while_stmt.body {
+            result.push_str(&self.generate_statement(stmt));
+        }
+
+        result.push_str(&format!("  jmp .while_{}\n", unique_label));
+        result.push_str(&format!(".while_end_{}:\n", unique_label));
+
+        result
+    }
+
+
+
     fn generate_statement(&self, stmt: &NodeStmt) -> String {
         match stmt {
             NodeStmt::Mov(mov) => {
@@ -100,10 +145,22 @@ impl Generator {
             }
             NodeStmt::Assign(assign) => {
                 let newstring = self.string_to_hex(self.generate_expr(&assign.expr));
-                format!("  {} db {} \n", self.generate_expr_ident(&assign.ident), newstring)
+                format!("  {} db {}, 0\n", self.generate_expr_ident(&assign.ident), newstring)
             }
             NodeStmt::If(if_stmt) => {
                 self.generate_if_statement(if_stmt, )
+            }
+            NodeStmt::While(while_stmt) => {
+                self.generate_while(while_stmt)
+            }
+            NodeStmt::Push(push) => {
+                format!("  push {}\n", self.generate_expr(&push.expr))
+            }
+            NodeStmt::Pop(pop) => {
+                format!("  pop {}\n", self.generate_expr_ident(&pop.ident))
+            }
+            NodeStmt::Xor(xor) => {
+                format!("  xor {}, {}\n", self.generate_expr_ident(&xor.ident), self.generate_expr(&xor.expr))
             }
             _ => "".to_string(),
         }

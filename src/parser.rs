@@ -119,6 +119,28 @@ pub struct NodeStmtIf {
 }
 
 #[derive(Debug)]
+pub struct NodeStmtWhile {
+    pub condition: NodeExpr,
+    pub body: Vec<NodeStmt>,
+}
+
+#[derive(Debug)]
+pub struct NodeStmtXor {
+    pub ident: NodeExprIdent,
+    pub expr: NodeExpr,
+}
+
+#[derive(Debug)]
+pub struct NodeStmtPush {
+    pub expr: NodeExpr,
+}
+
+#[derive(Debug)]
+pub struct NodeStmtPop {
+    pub ident: NodeExprIdent,
+}
+
+#[derive(Debug)]
 pub enum NodeStmt {
     Mov(NodeStmtMov),
     Add(NodeStmtAdd),
@@ -129,6 +151,11 @@ pub enum NodeStmt {
     Section(NodeStmtSection),
     Assign(NodeStmtAssign),
     If(NodeStmtIf),
+    While(NodeStmtWhile),
+    Xor(NodeStmtXor),
+    Push(NodeStmtPush),
+    Pop(NodeStmtPop),
+
 }
 
 #[derive(Debug)]
@@ -305,7 +332,11 @@ impl Parser {
                 | tokenizer::TokenType::Syscall 
                 | tokenizer::TokenType::Call 
                 | tokenizer::TokenType::Section 
-                | tokenizer::TokenType::If => {
+                | tokenizer::TokenType::If 
+                | tokenizer::TokenType::While 
+                | tokenizer::TokenType::Push 
+                | tokenizer::TokenType::Pop 
+                | tokenizer::TokenType::Xor => {
                     body.push(self.parse_statment().unwrap());
                 }
                 _ => break, 
@@ -413,7 +444,11 @@ impl Parser {
                 | tokenizer::TokenType::Syscall 
                 | tokenizer::TokenType::Call 
                 | tokenizer::TokenType::Section 
-                | tokenizer::TokenType::If => {
+                | tokenizer::TokenType::If 
+                | tokenizer::TokenType::While 
+                | tokenizer::TokenType::Push
+                | tokenizer::TokenType::Pop 
+                |tokenizer::TokenType::Xor => {
                     body.push(self.parse_statment().unwrap());
                 }
                 _ => break, 
@@ -430,6 +465,88 @@ impl Parser {
             body,
         })
     } 
+
+
+    fn parse_while(&mut self) -> NodeStmt {
+        self.consume();
+
+        let open_paren = self.consume().unwrap();
+        if open_paren.token_type != tokenizer::TokenType::Lparen {
+            panic!("Expected a lparen token to open the while condition.");
+        }
+
+        let condition = self.parse_expression();
+
+
+        let close_paren = self.consume().unwrap();
+        if close_paren.token_type != tokenizer::TokenType::Rparen {
+            panic!("Expected a rparen token to close the while condition.");
+        }
+
+
+        let opening_curly = self.consume().unwrap(); 
+        if opening_curly.token_type != tokenizer::TokenType::CurlyL {
+            panic!("Expected a curlyL token to open the while body.");
+        }
+
+        let mut body = Vec::new();
+        while let Some(token) = self.peek(0) {
+            match token.token_type {
+                tokenizer::TokenType::Mov
+                | tokenizer::TokenType::Add
+                | tokenizer::TokenType::Global 
+                | tokenizer::TokenType::Syscall 
+                | tokenizer::TokenType::Call 
+                | tokenizer::TokenType::Section 
+                | tokenizer::TokenType::If 
+                | tokenizer::TokenType::While 
+                | tokenizer::TokenType::Push
+                | tokenizer::TokenType::Pop
+                | tokenizer::TokenType::Xor => {
+                    body.push(self.parse_statment().unwrap());
+                }
+                _ => break, 
+            }
+        }
+
+        let closing_curly= self.consume().unwrap();
+        if closing_curly.token_type != tokenizer::TokenType::CurlyR {
+            panic!("Expected a curlyR token to close the while body.");
+        }
+
+
+        NodeStmt::While(NodeStmtWhile {
+            condition,
+            body,
+        })
+    }
+
+
+    fn parse_push(&mut self) -> NodeStmt {
+        self.consume();
+        let expr = self.parse_expression();
+        NodeStmt::Push(NodeStmtPush { expr })
+    }
+
+    fn parse_pop(&mut self) -> NodeStmt {
+        self.consume();
+        let ident = match self.parse_expression() {
+            NodeExpr::Ident(ident) => ident,
+            _ => panic!("Expected an identifier for the pop statement."),
+        };
+        NodeStmt::Pop(NodeStmtPop { ident })
+    }
+
+    fn parse_xor(&mut self) -> NodeStmt {
+        self.consume();
+        let ident = match self.parse_expression() {
+            NodeExpr::Ident(ident) => ident,
+            _ => panic!("Expected an identifier for the xor statement."),
+        };
+        let _ = self.consume().unwrap(); 
+        let expr = self.parse_expression();
+        NodeStmt::Xor(NodeStmtXor { ident, expr })
+    }
 
 
     pub fn parse_statment(&mut self) -> Option<NodeStmt> {
@@ -461,6 +578,18 @@ impl Parser {
                 }
                 tokenizer::TokenType::If => {
                     return Some(self.parse_if());
+                }
+                tokenizer::TokenType::While => {
+                    return Some(self.parse_while());
+                }
+                tokenizer::TokenType::Push => {
+                    return Some(self.parse_push());
+                }
+                tokenizer::TokenType::Pop => {
+                    return Some(self.parse_pop());
+                }
+                tokenizer::TokenType::Xor => {
+                    return Some(self.parse_xor());
                 }
                 _ => {
                     panic!("Unexpected token {:?}", token);
