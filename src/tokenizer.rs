@@ -27,7 +27,8 @@ pub enum TokenType {
     Push,
     Xor,
     Pop,
-    Len
+    Len,
+    Define
 }
 
 
@@ -65,6 +66,7 @@ fn token_type_to_String(token_type: TokenType) -> String {
         TokenType::Xor => "Xor".to_string(),
         TokenType::Pop => "Pop".to_string(),
         TokenType::Len => "Len".to_string(),
+        TokenType::Define => "Define".to_string(),
     }
 }
 
@@ -130,6 +132,7 @@ impl Tokenizer {
                     "xor" => tokens.push(Token { token_type: TokenType::Xor, value: None }),
                     "pop" => tokens.push(Token { token_type: TokenType::Pop, value: None }),
                     "len" => tokens.push(Token { token_type: TokenType::Len, value: None }),
+                    "define" => tokens.push(Token { token_type: TokenType::Define, value: None }),
                     _ => tokens.push(Token { token_type: TokenType::Identifier, value: Some(buffer.clone()) }),
                 }
                 buffer.clear();

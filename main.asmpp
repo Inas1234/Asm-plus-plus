@@ -4,6 +4,9 @@ section .data
     star: "*"
     newline: "\n"
 
+
+define EXIT_SUCCESS 0
+
 fn print(message, length){
     mov rax, 1
     mov rdi, 1
@@ -32,5 +35,5 @@ fn _start()
     }
 
 
-    call exit(0)
+    call exit(EXIT_SUCCESS)
 }

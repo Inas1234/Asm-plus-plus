@@ -147,6 +147,12 @@ pub struct NodeStmtPop {
 }
 
 #[derive(Debug)]
+pub struct NodeStmtDefine {
+    pub ident: NodeExprIdent,
+    pub expr: NodeExpr,
+}
+
+#[derive(Debug)]
 pub enum NodeStmt {
     Mov(NodeStmtMov),
     Add(NodeStmtAdd),
@@ -161,13 +167,14 @@ pub enum NodeStmt {
     Xor(NodeStmtXor),
     Push(NodeStmtPush),
     Pop(NodeStmtPop),
-
+    Define(NodeStmtDefine),
 }
 
 #[derive(Debug)]
 pub struct Node {
     pub functions: Vec<NodeFunc>,
     pub stmt: Vec<NodeStmt>,
+    pub defines: Vec<NodeStmtDefine>,
 }
 
 pub struct Parser {
@@ -246,7 +253,6 @@ impl Parser {
         }
     }
 
-    // Add a helper function to expect and consume a specific type of token, improving error handling
     fn expect_token(&mut self, expected_type: tokenizer::TokenType, error_msg: &str) -> Option<&Token> {
         let token = self.consume().expect(error_msg);
         if token.token_type != expected_type {
@@ -307,6 +313,31 @@ impl Parser {
         }
     }
 
+    fn parse_scoped_statement(&mut self) -> Vec<NodeStmt> {
+        let mut stmt = Vec::new();
+        while let Some(token) = self.peek(0) {
+            match token.token_type {
+                tokenizer::TokenType::Mov
+                | tokenizer::TokenType::Add
+                | tokenizer::TokenType::Global 
+                | tokenizer::TokenType::Syscall 
+                | tokenizer::TokenType::Call 
+                | tokenizer::TokenType::Section 
+                | tokenizer::TokenType::If 
+                | tokenizer::TokenType::While 
+                | tokenizer::TokenType::Push 
+                | tokenizer::TokenType::Pop 
+                | tokenizer::TokenType::Xor 
+                => {
+                    stmt.push(self.parse_statment().unwrap());
+                }
+                _ => break, 
+            }
+        }
+        stmt
+
+    }
+
     fn parse_function(&mut self) -> NodeStmt {
         self.consume(); // Consume the "func" keyword
         let name = match self.parse_expression() {
@@ -347,25 +378,7 @@ impl Parser {
         }
 
         let mut body = Vec::new();
-        while let Some(token) = self.peek(0) {
-            match token.token_type {
-                tokenizer::TokenType::Mov
-                | tokenizer::TokenType::Add
-                | tokenizer::TokenType::Global 
-                | tokenizer::TokenType::Syscall 
-                | tokenizer::TokenType::Call 
-                | tokenizer::TokenType::Section 
-                | tokenizer::TokenType::If 
-                | tokenizer::TokenType::While 
-                | tokenizer::TokenType::Push 
-                | tokenizer::TokenType::Pop 
-                | tokenizer::TokenType::Xor 
-                => {
-                    body.push(self.parse_statment().unwrap());
-                }
-                _ => break, 
-            }
-        }
+        body.append(&mut self.parse_scoped_statement());
 
         let closing_curly= self.consume().unwrap();
         if closing_curly.token_type != tokenizer::TokenType::CurlyR {
@@ -471,24 +484,7 @@ impl Parser {
         }
 
         let mut body = Vec::new();
-        while let Some(token) = self.peek(0) {
-            match token.token_type {
-                tokenizer::TokenType::Mov
-                | tokenizer::TokenType::Add
-                | tokenizer::TokenType::Global 
-                | tokenizer::TokenType::Syscall 
-                | tokenizer::TokenType::Call 
-                | tokenizer::TokenType::Section 
-                | tokenizer::TokenType::If 
-                | tokenizer::TokenType::While 
-                | tokenizer::TokenType::Push
-                | tokenizer::TokenType::Pop 
-                |tokenizer::TokenType::Xor => {
-                    body.push(self.parse_statment().unwrap());
-                }
-                _ => break, 
-            }
-        }
+        body.append(&mut self.parse_scoped_statement());
 
         let closing_curly= self.consume().unwrap();
         if closing_curly.token_type != tokenizer::TokenType::CurlyR {
@@ -524,24 +520,7 @@ impl Parser {
         }
 
         let mut body = Vec::new();
-        while let Some(token) = self.peek(0) {
-            match token.token_type {
-                tokenizer::TokenType::Mov
-                | tokenizer::TokenType::Add
-                | tokenizer::TokenType::Global 
-                | tokenizer::TokenType::Syscall 
-                | tokenizer::TokenType::Call 
-                | tokenizer::TokenType::Section 
-                | tokenizer::TokenType::If 
-                | tokenizer::TokenType::While 
-                | tokenizer::TokenType::Push
-                | tokenizer::TokenType::Pop
-                | tokenizer::TokenType::Xor => {
-                    body.push(self.parse_statment().unwrap());
-                }
-                _ => break, 
-            }
-        }
+        body.append(&mut self.parse_scoped_statement());
 
         let closing_curly= self.consume().unwrap();
         if closing_curly.token_type != tokenizer::TokenType::CurlyR {
@@ -582,6 +561,16 @@ impl Parser {
         NodeStmt::Xor(NodeStmtXor { ident, expr })
     }
 
+    fn parse_define(&mut self) -> NodeStmt {
+        self.consume();
+        let ident = match self.parse_expression() {
+            NodeExpr::Ident(ident) => ident,
+            _ => panic!("Expected an identifier for the define statement."),
+        };
+
+        let expr = self.parse_expression();
+        NodeStmt::Define(NodeStmtDefine { ident, expr })
+    }
 
     pub fn parse_statment(&mut self) -> Option<NodeStmt> {
         while let Some(token) = self.peek(0)  {
@@ -625,6 +614,9 @@ impl Parser {
                 tokenizer::TokenType::Xor => {
                     return Some(self.parse_xor());
                 }
+                tokenizer::TokenType::Define => {
+                    return Some(self.parse_define());
+                }
                 _ => {
                     panic!("Unexpected token {:?}", token);
                 }
@@ -638,15 +630,17 @@ impl Parser {
     pub fn parse_prog(&mut self) -> Node {
         let mut stmt = Vec::new();
         let mut functions = Vec::new();
+        let mut defines: Vec<NodeStmtDefine> = Vec::new();
 
         while let Some(node) = self.parse_statment() {
             match node {
                 NodeStmt::Func(func) => functions.push(func),
+                NodeStmt::Define(define) => defines.push(define),
                 _ => stmt.push(node),
             }
         }
 
-        Node { stmt, functions }
+        Node { stmt, functions, defines }
     }
 
     fn peek(&self, offset: usize) -> Option<&Token> {

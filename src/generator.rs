@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use crate::parser::{Node, NodeExpr, NodeExprIdent, NodeExprLen, NodeExprNumber, NodeExprString, NodeFunc, NodeStmt, NodeStmtIf, NodeStmtWhile};
+use crate::parser::{Node, NodeExpr, NodeExprIdent, NodeExprLen, NodeExprNumber, NodeExprString, NodeFunc, NodeStmt, NodeStmtDefine, NodeStmtIf, NodeStmtWhile};
 
 static LABEL_COUNT: AtomicUsize = AtomicUsize::new(0);
 
@@ -248,9 +248,17 @@ impl Generator {
         }
     }
 
+    fn generate_define(&self, define: &NodeStmtDefine) -> String {
+        format!("%define {} {}\n", self.generate_expr_ident(&define.ident), self.generate_expr(&define.expr))
+    }
+
 
     pub fn generate(&self) -> String {
         let mut result = String::new();
+
+        for define in &self.node.defines {
+            result.push_str(&self.generate_define(define));
+        }
 
         for func in &self.node.functions {
             result.push_str(&self.generate_function(func));
