@@ -9,25 +9,14 @@ asmpp -f <format> -o <output file name> <input file name>
 ## Syntax
 The syntax is very similar to x86-64 assembly, but with some differences. Here is an example of a simple program that prints out a triangle of asterisks:
 ```c
+include "std.asmpp"
+
 global _start
 
 section .data
     star: "*"
     newline: "\n"
 
-fn print(message, length){
-    mov rax, 1
-    mov rdi, 1
-    mov rsi, message
-    mov rdx, length
-    syscall
-}
-
-fn exit(code) {
-    mov rax, 60
-    mov rdi, code
-    syscall
-}
 
 fn _start() 
 {
@@ -43,7 +32,7 @@ fn _start()
     }
 
 
-    call exit(0)
+    call exit(EXIT_SUCCESS)
 }
 ```
 ## Features
@@ -51,6 +40,8 @@ fn _start()
 - [x] While loops
 - [x] Functions
 - [x] Comments
+- [x] Macros
+- [x] Standard library
 - [ ] All x86-64 instructions
 - [ ] Macros
 

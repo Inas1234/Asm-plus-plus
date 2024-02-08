@@ -1,0 +1,46 @@
+define EXIT_SUCCESS 0
+define EXIT_FAILURE 1
+
+fn print(message, length){
+    mov rax, 1
+    mov rdi, 1
+    mov rsi, message
+    mov rdx, length
+    syscall
+}
+
+fn exit(code) {
+    mov rax, 60
+    mov rdi, code
+    syscall
+}
+
+fn open(filename, flags, mode) {
+    mov rax, 2
+    mov rdi, filename
+    mov rsi, flags
+    mov rdx, mode
+    syscall
+}
+
+fn read(fd, buffer, count) {
+    mov rax, 0
+    mov rdi, fd
+    mov rsi, buffer
+    mov rdx, count
+    syscall
+}
+
+fn write(fd, buffer, count) {
+    mov rax, 1
+    mov rdi, fd
+    mov rsi, buffer
+    mov rdx, count
+    syscall
+}
+
+fn close(fd) {
+    mov rax, 3
+    mov rdi, fd
+    syscall
+}

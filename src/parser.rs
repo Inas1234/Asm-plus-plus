@@ -1,4 +1,4 @@
-use crate::tokenizer::{self, Token};
+use crate::tokenizer::{self, Token, TokenType};
 
 #[derive(Debug)]
 pub struct NodeExprIdent {
@@ -627,11 +627,44 @@ impl Parser {
         None
     }
 
+    fn parse_include(&mut self) -> Result<(), String> {
+        let token = self.consume().expect("Expected 'include' directive");
+        if let TokenType::Include = token.token_type {
+            let path_token = self.consume().expect("Expected a file path after 'include'");
+            match &path_token.token_type {
+                TokenType::StringLit => {
+                    let path = &path_token.value.clone().unwrap();
+                    let content = std::fs::read_to_string(path)
+                        .map_err(|e| format!("Failed to include file '{}': {}", path, e))?;
+                    let mut tokenizer = tokenizer::Tokenizer::new(content);
+                    let included_tokens = tokenizer.tokenize();
+                    self.tokens.splice(self.index..self.index, included_tokens);
+                }
+                _ => return Err("Expected a string literal as file path for 'include'".into()),
+            }
+        } else {
+            return Err("Expected 'include' directive".into());
+        }
+        Ok(())
+    }
+
+
     pub fn parse_prog(&mut self) -> Node {
         let mut stmt = Vec::new();
         let mut functions = Vec::new();
         let mut defines: Vec<NodeStmtDefine> = Vec::new();
 
+        while let Some(token) = self.peek(0) {
+            match token.token_type {
+                TokenType::Include => {
+                    self.parse_include().expect("Failed to parse include directive");
+                }
+                _ => break,
+            }
+            
+        }
+
+        
         while let Some(node) = self.parse_statment() {
             match node {
                 NodeStmt::Func(func) => functions.push(func),
